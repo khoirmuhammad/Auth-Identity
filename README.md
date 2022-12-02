@@ -23,6 +23,8 @@ Mapping between User and Role in AspNetUserRoles table
 await _userManager.AddToRoleAsync(user, "User");
 ```
 
+The worst scenario is once system has inserted data into database, and the subsequent process is send email. But user make mistake by inputting incorrect email. Within code it won't be detected as an error despite sent to incorrect email (Event if we put try catch). In order to overcome this possibility, we able to create 1 field called email confirmation. So it will reduce user input mistakes
+
 ## ** Email Service
 https://code-maze.com/aspnetcore-send-email/  
 http://help.warmupinbox.com/en/articles/4934806-configure-for-google-workplace-with-two-factor-authentication-2fa  
