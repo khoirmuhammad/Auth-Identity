@@ -137,16 +137,30 @@ namespace IdentityAuth.Controllers
         }
 
         [HttpPost]
-        [Route("SimpleLogin")]
-        public async Task<IActionResult> SimpleLogin([FromBody] UserLoginModel userModel)
+        [Route("AutoLogin")]
+        public async Task<IActionResult> AutoLogin([FromBody] UserLoginModel userModel)
         {
             ApiResponseModel response = new ApiResponseModel();
 
             var result = await _signInManager.PasswordSignInAsync
-                (userModel.Email, userModel.Password, userModel.RememberMe, false);
+                (userModel.Email, userModel.Password, userModel.RememberMe, lockoutOnFailure: true);
+
             if (result.Succeeded)
             {
                 return Ok();
+            }
+
+            if (result.IsLockedOut)
+            {
+                var forgotPassLink = Url.Action(nameof(ForgotPassword), "Account", new { }, Request.Scheme);
+                var content = string.Format("Your account is locked out, to reset your password, please click this link: {0}", forgotPassLink);
+                var message = new EmailMessage(new string[] { userModel.Email }, "Locked out account information", content);
+                await _emailSender.SendEmailAsync(message);
+
+                response.Code = Ok().StatusCode;
+                response.ErrorMessage = "Your account is locked out, Please check email";
+
+                return Ok(response);
             }
             else
             {
@@ -155,6 +169,7 @@ namespace IdentityAuth.Controllers
 
                 return BadRequest(response);
             }
+
         }
 
         [HttpPost]
