@@ -4,6 +4,7 @@ In this section we will cover several functionalities provided by ASP NET Core I
 - Email Activation / Confirmation after registration
 - Login Logout
 - Forgot & Reset Password using email sending
+- Lockout : Lock Login in case got failed login in several times
 
 Before proceeding the process, install the foloowing packages below
 - Microsoft.EntityFrameworkCore.Tools (Database Migration Purpose)
@@ -72,6 +73,23 @@ We only need call the method and 3 steps in manual login will be done automatica
 ## Forgot & Reset Password
 - In forgot password we only need to generate token. It will validate that user do reset password is trusted user
 - In reset password we only need send new password, email and token
+
+## Lockout
+- By default MaxFailedAccessAttempts = 5 times ( it means max failed in attemping login is 5 times)
+- By default DefaultLockoutTimeSpan = 5 minutes (after 5 times, login will dissabled until 5 minutes or we able see on LockoutEnd in table. After 5 minutes in case we feel remember the actual password, we able to perform login again)
+
+- In database table we have appropriate column such as LockoutEnd, LockoutEnabled, AccessFailedCount
+```
+opt.Lockout.AllowedForNewUsers = true;
+opt.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(2);
+opt.Lockout.MaxFailedAccessAttempts = 3;
+```
+
+in order to activated this feature we need to set true in last parameter of PasswordSignInAsync
+```
+var result = await _signInManager.PasswordSignInAsync
+                (userModel.Email, userModel.Password, userModel.RememberMe, lockoutOnFailure: true);
+```
 
 ## ** Service Configuration Program.cs
 In order to perform Model Mapping / Data Transfer Object if necessary
