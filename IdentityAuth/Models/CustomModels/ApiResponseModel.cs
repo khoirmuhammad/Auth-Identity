@@ -8,15 +8,15 @@ namespace IdentityAuth.Models.CustomModels
         {
 
         }
-        public ApiResponseModel(int code, string errorMessage, string? errorDetail = null)
+        public ApiResponseModel(int code, List<string> errorMessage, string? errorDetail = null)
         {
             Code = code;
-            ErrorMessage = errorMessage;
+            ErrorMessages = errorMessage;
             ErrorDetail = errorDetail;
         }
 
         public int Code { get; set; }
-        public string ErrorMessage { get; set; } = string.Empty;
+        public List<string> ErrorMessages { get; set; } = new List<string>();
         public string? ErrorDetail { get; set; }
 
         public override string ToString()

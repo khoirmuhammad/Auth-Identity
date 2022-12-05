@@ -55,6 +55,9 @@ builder.Services.ConfigureApplicationCookie(options =>
             context.Response.StatusCode = 403;
             return Task.CompletedTask;
         };
+
+        options.Cookie.SameSite = SameSiteMode.None;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     }
 );
 
@@ -75,6 +78,12 @@ if (app.Environment.IsDevelopment())
 app.ConfigureExceptionHandler(app.Environment);
 
 app.UseHttpsRedirection();
+
+app.UseCors(builder => builder.WithOrigins("http://localhost:4200")
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials());
+
 app.UseAuthentication();
 app.UseAuthorization();
 

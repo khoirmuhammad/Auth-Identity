@@ -7,7 +7,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Transactions;
 
 namespace IdentityAuth.Controllers
 {
@@ -43,18 +46,25 @@ namespace IdentityAuth.Controllers
             if (!result.Succeeded)
             {
                 response.Code = BadRequest().StatusCode;
-                response.ErrorMessage = string.Join("\n", result.Errors.Select(s => s.Description).ToList());
+                response.ErrorMessages = result.Errors.Select(s => s.Description).ToList();
 
                 return BadRequest(response);
             }
 
-            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var confirmationLink = Url.Action(nameof(ConfirmEmail), "Account", new { token, email = user.Email }, Request.Scheme);
-            var message = new EmailMessage(new string[] { user.Email }, "Confirmation email link", confirmationLink);
-            await _emailSender.SendEmailAsync(message);
-
             await _userManager.AddToRoleAsync(user, "User");
 
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+
+            var param = new Dictionary<string, string?>
+            {
+                {"token", token },
+                {"email", user.Email }
+            };
+
+            var callback = QueryHelpers.AddQueryString(userModel.ClientURI, param);
+            //var confirmationLink = Url.Action(nameof(ConfirmEmail), "Account", new { token, email = user.Email }, Request.Scheme);
+            var message = new EmailMessage(new string[] { user.Email }, "Confirmation email link", callback);
+            await _emailSender.SendEmailAsync(message);
            
 
             return StatusCode(201, userModel);
@@ -71,7 +81,7 @@ namespace IdentityAuth.Controllers
             if (user == null)
             {
                 response.Code = NotFound().StatusCode;
-                response.ErrorMessage = $"{email} was not found.";
+                response.ErrorMessages.Add($"{email} was not found.");
 
                 return NotFound(response);
             }
@@ -79,15 +89,23 @@ namespace IdentityAuth.Controllers
             if (user.EmailConfirmed)
             {
                 response.Code = BadRequest().StatusCode;
-                response.ErrorMessage = "Email has confirmed";
+                response.ErrorMessages.Add("Email has confirmed");
 
                 return BadRequest(response);
             }
 
             var result = await _userManager.ConfirmEmailAsync(user, token);
 
+            if (!result.Succeeded)
+            {
+                response.Code = BadRequest().StatusCode;
+                response.ErrorMessages.Add("Invalid Email Confirmation Request");
+
+                return BadRequest(response);
+            }
+
             response.Code = Ok().StatusCode;
-            response.ErrorMessage = "Successfully";
+            response.ErrorMessages.Add("Successfully");
 
             return Ok(response);
         }
@@ -121,7 +139,7 @@ namespace IdentityAuth.Controllers
                 else
                 {
                     response.Code = BadRequest().StatusCode;
-                    response.ErrorMessage = "Confirm your email first after registering";
+                    response.ErrorMessages.Add("Confirm your email first after registering");
 
                     return BadRequest(response);
                 }
@@ -130,7 +148,7 @@ namespace IdentityAuth.Controllers
             else
             {
                 response.Code = BadRequest().StatusCode;
-                response.ErrorMessage = "Check your email & password before attemping login";
+                response.ErrorMessages.Add("Check your email & password before attemping login");
 
                 return BadRequest();
             }
@@ -158,14 +176,14 @@ namespace IdentityAuth.Controllers
                 await _emailSender.SendEmailAsync(message);
 
                 response.Code = Ok().StatusCode;
-                response.ErrorMessage = "Your account is locked out, Please check email";
+                response.ErrorMessages.Add("Your account is locked out, Please check email");
 
                 return Ok(response);
             }
             else
             {
                 response.Code = BadRequest().StatusCode;
-                response.ErrorMessage = "Please verify your account";
+                response.ErrorMessages.Add("Please verify your account");
 
                 return BadRequest(response);
             }
@@ -182,7 +200,7 @@ namespace IdentityAuth.Controllers
             if (user == null)
             {
                 response.Code = NotFound().StatusCode;
-                response.ErrorMessage = $"{forgotPasswordModel?.Email} is not found.";
+                response.ErrorMessages.Add($"{forgotPasswordModel?.Email} is not found.");
 
                 return NotFound(response);
             }
@@ -205,7 +223,7 @@ namespace IdentityAuth.Controllers
             if (user == null)
             {
                 response.Code = NotFound().StatusCode;
-                response.ErrorMessage = $"{resetPasswordModel?.Email} is not found.";
+                response.ErrorMessages.Add($"{resetPasswordModel?.Email} is not found.");
 
                 return NotFound(response);
             }
@@ -220,7 +238,7 @@ namespace IdentityAuth.Controllers
             else
             {
                 response.Code = BadRequest().StatusCode;
-                response.ErrorMessage = string.Join("\n", resetPassResult.Errors.Select(s => s.Description).ToList());
+                response.ErrorMessages = resetPassResult.Errors.Select(s => s.Description).ToList();
 
                 return BadRequest();
             }
