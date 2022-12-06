@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 using IdentityAuth.Extensions;
 using Microsoft.Extensions.Options;
 using IdentityAuth.Email;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using IdentityAuth.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +46,8 @@ builder.Services.AddIdentity<User, IdentityRole>(opt =>
 builder.Services.Configure<DataProtectionTokenProviderOptions>(opt =>
    opt.TokenLifespan = TimeSpan.FromHours(1));
 
+
+// Cookie Configuration, Can be commented if JWT Configuration is selected to use
 builder.Services.ConfigureApplicationCookie(options =>
     {
         options.Events.OnRedirectToLogin = (context) =>
@@ -61,10 +67,32 @@ builder.Services.ConfigureApplicationCookie(options =>
     }
 );
 
+// JWT Configuration, can be commented if cookie configuration is selected to use
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+builder.Services.AddAuthentication(opt =>
+{
+    opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["validIssuer"],
+        ValidAudience = jwtSettings["validAudience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8
+            .GetBytes(jwtSettings.GetSection("securityKey").Value))
+    };
+});
+
 var emailConfig = builder.Configuration.GetSection("EmailConfiguration").Get<EmailConfiguration>();
 builder.Services.AddSingleton(emailConfig);
 
 builder.Services.AddScoped<IEmailSender, EmailSender>();
+builder.Services.AddScoped<JWTHandler>();
 
 var app = builder.Build();
 
